@@ -31,10 +31,23 @@ export const getAllMenus = expressAsyncHandler(async (req, res) => {
 // @route   POST
 // @access  Admin
 export const createMenu = expressAsyncHandler(async (req, res) => {
-  const { restaurantId, categoryId, name, price, type } = req.body;
+  const {
+    restaurantId,
+    categoryId,
+    name,
+    price,
+    isVegetarian,
+    halfAvailable,
+    halfPrice,
+  } = req.body;
   if (!restaurantId || !categoryId) {
     res.status(400);
     throw new Error('Please select the restaurant and category');
+  }
+
+  if (halfAvailable && !halfPrice) {
+    res.status(400);
+    throw new Error('Please provide half price');
   }
 
   const restaurant = await restaurantModel.findById(restaurantId);
@@ -54,7 +67,10 @@ export const createMenu = expressAsyncHandler(async (req, res) => {
     category: categoryId,
     name,
     price,
-    type,
+    isVegetarian,
+    type: isVegetarian ? 'Veg' : 'NonVeg',
+    halfAvailable,
+    halfPrice,
   });
 
   res.status(200).json({
@@ -69,16 +85,20 @@ export const createMenu = expressAsyncHandler(async (req, res) => {
 // @access  Admin
 export const updateMenu = expressAsyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, price, type, categoryId } = req.body;
+  const { name, price, isVegetarian, categoryId, halfAvailable, halfPrice } =
+    req.body;
   const menu = await menuModel.findById(id);
   if (!menu) {
     res.status(404);
     throw new Error('No menu found');
   }
+  menu.category = categoryId;
   menu.name = name;
   menu.price = price;
-  menu.type = type;
-  menu.category = categoryId;
+  menu.type = isVegetarian ? 'Veg' : 'NonVeg';
+  menu.isVegetarian = isVegetarian;
+  menu.halfAvailable = halfAvailable;
+  menu.halfPrice = halfPrice;
 
   await menu.save();
   res.status(200).json({
