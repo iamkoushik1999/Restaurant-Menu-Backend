@@ -3,6 +3,8 @@ import expressAsyncHandler from 'express-async-handler';
 // Models
 import restaurantModel from '../models/restaurantModel.js';
 import categoryModel from '../models/categoryModel.js';
+// Utils
+import { generateCategoryStanding } from '../utils/generateNumber.js';
 
 // --------------------------------------------------------------------------------
 
@@ -41,17 +43,10 @@ export const createCategory = expressAsyncHandler(async (req, res) => {
     throw new Error('No restautant found');
   }
 
-  // Get the last category to find the last sequence number
-  const lastCategory = await categoryModel.findOne().sort({ createdAt: -1 });
-
-  // Extract the last number and increment it, or start from 0
-  const lastNumber = lastCategory ? parseInt(lastCategory?.standing) : 0;
-  const nextNumber = lastNumber + 1;
-
   const category = await categoryModel.create({
     restaurant: restaurantId,
     name,
-    standing: nextNumber,
+    standing: await generateCategoryStanding(),
   });
 
   res.status(200).json({
