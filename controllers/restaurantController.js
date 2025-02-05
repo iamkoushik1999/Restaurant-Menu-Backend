@@ -9,7 +9,12 @@ import restaurantModel from '../models/restaurantModel.js';
 // @route   GET
 // @access  Admin
 export const getRestaurants = expressAsyncHandler(async (req, res) => {
-  const restaurants = await restaurantModel.find({}).select('name');
+  const query = {
+    isDeleted: false,
+  };
+  const restaurants = await restaurantModel
+    .find(query)
+    .select('name address phone');
   const totalRestaurants = await restaurantModel.countDocuments({});
 
   res.status(200).json({
