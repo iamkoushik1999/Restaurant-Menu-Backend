@@ -4,6 +4,8 @@ const router = Router();
 // ------------------------------------------------------
 
 // Import Routes
+// Auth
+import authRoutes from './routes/authRoutes.js';
 // Owner
 import ownerRoutes from './routes/restaurantOwnerRoutes.js';
 // Restaurant
@@ -14,6 +16,8 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 
 // Use Routes
+// Auth
+router.use('/api/v1/auth', authRoutes);
 // Owners
 router.use('/api/v1/owner', ownerRoutes);
 // Restaurants

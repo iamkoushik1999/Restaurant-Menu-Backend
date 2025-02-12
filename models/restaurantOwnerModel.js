@@ -4,6 +4,7 @@ import {
   generateResetToken,
   hashPassword,
 } from '../helper/passwordHelper.js';
+import { type } from 'os';
 
 const restaurantOwnerSchema = mongoose.Schema(
   {
@@ -24,6 +25,10 @@ const restaurantOwnerSchema = mongoose.Schema(
     },
     phoneNumber: {
       type: String,
+    },
+    role: {
+      type: String,
+      default: 'owner',
     },
     isVerified: {
       type: Boolean,
