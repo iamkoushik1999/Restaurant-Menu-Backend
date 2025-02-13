@@ -11,8 +11,9 @@ import {
 
 // --------------------------------------------------------------------------
 
-// POST
-// Login
+// @desc    Login
+// @route   POST
+// @access  Restaurant Owner
 export const login = expressAsyncHandler(async (req, res) => {
   const { role } = req.query;
   if (!role) {
@@ -71,8 +72,9 @@ export const login = expressAsyncHandler(async (req, res) => {
   }
 });
 
-// PUT
-// Change First Time Password
+// @desc    Change password when 1st time login
+// @route   POST
+// @access  Restaurant Owner
 export const changeFirstPassword = expressAsyncHandler(async (req, res) => {
   const { role } = req.query;
   if (!role) {
@@ -115,8 +117,9 @@ export const changeFirstPassword = expressAsyncHandler(async (req, res) => {
   }
 });
 
-// GET
-// My Profile
+// @desc    My Profile
+// @route   GET
+// @access  Restaurant Owner
 export const myProfile = expressAsyncHandler(async (req, res) => {
   // console.log(req.user);
   const { id, role } = req.user;
@@ -142,8 +145,9 @@ export const myProfile = expressAsyncHandler(async (req, res) => {
   }
 });
 
-// POST
-// GENERATE ACCESS TOKEN from REFRESH TOKEN
+// @desc    GENERATE ACCESS TOKEN from REFRESH TOKEN
+// @route   POST
+// @access  Restaurant Owner
 export const generateAccessFromRefresh = expressAsyncHandler(
   async (req, res) => {
     const { refreshToken } = req.body;

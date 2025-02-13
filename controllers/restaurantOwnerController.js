@@ -5,8 +5,9 @@ import restaurantOwnerModel from '../models/restaurantOwnerModel.js';
 
 // --------------------------------------------------------------------------------
 
-// POST
-// Add Owner
+// @desc    Create a new Restaurant Owner
+// @route   POST
+// @access  Admin
 export const addRestaurantOwner = expressAsyncHandler(async (req, res) => {
   const { fname, lname, email, password, phoneNumber } = req.body;
   if (!fname || !lname || !email || !password || !phoneNumber) {
@@ -39,8 +40,9 @@ export const addRestaurantOwner = expressAsyncHandler(async (req, res) => {
   });
 });
 
-// GET
-// Get All Owners
+// @desc    Get All Restaurant Owner
+// @route   POST
+// @access  Admin
 export const getAllRestaurantOwners = expressAsyncHandler(async (req, res) => {
   const query = {
     ...(req.query.name && {
