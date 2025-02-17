@@ -33,7 +33,7 @@ export const login = expressAsyncHandler(async (req, res) => {
     const restaurantOwnerData = await restaurantOwnerModel.findOne({ email });
     if (!restaurantOwnerData) {
       res.status(404);
-      throw new Error('restaurantOwner not found');
+      throw new Error('Restaurant Owner not found');
     }
 
     const { password: pass, ...restaurantOwner } = restaurantOwnerData._doc;
@@ -41,7 +41,7 @@ export const login = expressAsyncHandler(async (req, res) => {
     const checkPassword = await restaurantOwnerData.comparePassword(password);
     if (!checkPassword) {
       res.status(400);
-      throw new Error('Invalid restaurantOwner credential');
+      throw new Error('Invalid restaurant owner credential');
     }
 
     const accessToken = generateAccessToken(restaurantOwner, 'owner');
