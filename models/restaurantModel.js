@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const restaurantSchema = new mongoose.Schema(
   {
+    owner: {
+      type: String,
+      required: true,
+      ref: 'RestaurantOwner',
+    },
     name: {
       type: String,
       required: true,
