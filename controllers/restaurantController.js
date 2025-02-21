@@ -150,10 +150,8 @@ export const updateRestaurant = expressAsyncHandler(async (req, res) => {
   } = req.body;
   const restaurant = await restaurantModel.findById(id);
   if (!restaurant) {
-    res.status(404).json({
-      message: 'Restaurant not found',
-      success: false,
-    });
+    res.status(404);
+    throw new Error('Restaurant not found');
   }
 
   if (!owner) {
@@ -193,10 +191,8 @@ export const deleteRestaurant = expressAsyncHandler(async (req, res) => {
   const { id } = req.params;
   const restaurant = await restaurantModel.findById(id);
   if (!restaurant) {
-    res.status(404).json({
-      message: 'Restaurant not found',
-      success: false,
-    });
+    res.status(404);
+    throw new Error('Restaurant not found');
   }
   // Soft Delete
   restaurant.isDeleted = true;
@@ -214,10 +210,8 @@ export const restoreRestaurant = expressAsyncHandler(async (req, res) => {
   const { id } = req.params;
   const restaurant = await restaurantModel.findById(id);
   if (!restaurant) {
-    res.status(404).json({
-      message: 'Restaurant not found',
-      success: false,
-    });
+    res.status(404);
+    throw new Error('Restaurant not found');
   }
   // Soft Delete
   restaurant.isDeleted = false;

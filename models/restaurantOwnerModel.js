@@ -4,7 +4,6 @@ import {
   generateResetToken,
   hashPassword,
 } from '../helper/passwordHelper.js';
-import { type } from 'os';
 
 const restaurantOwnerSchema = mongoose.Schema(
   {
@@ -49,15 +48,6 @@ const restaurantOwnerSchema = mongoose.Schema(
   }
 );
 
-// Hash Password
-restaurantOwnerSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
-  this.password = await hashPassword(this.password);
-  next();
-});
-
 // Match Password
 restaurantOwnerSchema.method(
   'comparePassword',
@@ -74,8 +64,5 @@ restaurantOwnerSchema.methods.getResetToken = function () {
   return resetToken;
 };
 
-const restaurantOwnerModel = mongoose.model(
-  'RestaurantOwner',
-  restaurantOwnerSchema
-);
+const restaurantOwnerModel = mongoose.model('Owner', restaurantOwnerSchema);
 export default restaurantOwnerModel;

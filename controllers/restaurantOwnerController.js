@@ -2,6 +2,8 @@
 import expressAsyncHandler from 'express-async-handler';
 // Models
 import restaurantOwnerModel from '../models/restaurantOwnerModel.js';
+// Helper
+import { hashPassword } from '../helper/passwordHelper.js';
 
 // --------------------------------------------------------------------------------
 
@@ -29,7 +31,7 @@ export const addRestaurantOwner = expressAsyncHandler(async (req, res) => {
     lname,
     fullName,
     email,
-    password,
+    password: await hashPassword(password),
     phoneNumber,
   });
 
