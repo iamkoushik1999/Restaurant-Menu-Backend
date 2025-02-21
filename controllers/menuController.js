@@ -11,13 +11,14 @@ import menuModel from '../models/menuModel.js';
 // @route   GET
 // @access  Public
 export const getAllMenus = expressAsyncHandler(async (req, res) => {
-  const { restaurantId } = req.params;
-  const restaurant = await restaurantModel.findById(restaurantId);
+  const { id } = req.user;
+
+  const restaurant = await restaurantModel.findOne({ owner: id });
   if (!restaurant) {
     res.status(404);
     throw new Error('No restaurant found');
   }
-  const menus = await menuModel.find({ restaurant: restaurantId });
+  const menus = await menuModel.find({ restaurant: restaurant._id });
 
   const totalMenus = menus.length;
 
@@ -31,18 +32,12 @@ export const getAllMenus = expressAsyncHandler(async (req, res) => {
 // @route   POST
 // @access  Admin
 export const createMenu = expressAsyncHandler(async (req, res) => {
-  const {
-    restaurantId,
-    categoryId,
-    name,
-    price,
-    isVegetarian,
-    halfAvailable,
-    halfPrice,
-  } = req.body;
-  if (!restaurantId || !categoryId) {
+  const { id } = req.user;
+  const { categoryId, name, price, isVegetarian, halfAvailable, halfPrice } =
+    req.body;
+  if (!categoryId || !name || !price) {
     res.status(400);
-    throw new Error('Please select the restaurant and category');
+    throw new Error('Please select category, name and price');
   }
 
   if (halfAvailable && !halfPrice) {
@@ -50,10 +45,10 @@ export const createMenu = expressAsyncHandler(async (req, res) => {
     throw new Error('Please provide half price');
   }
 
-  const restaurant = await restaurantModel.findById(restaurantId);
+  const restaurant = await restaurantModel.findOne({ owner: id });
   if (!restaurant) {
     res.status(404);
-    throw new Error('No restautant found');
+    throw new Error('No restaurant found');
   }
 
   const category = await categoryModel.findById(categoryId);
@@ -63,7 +58,7 @@ export const createMenu = expressAsyncHandler(async (req, res) => {
   }
 
   const menu = await menuModel.create({
-    restaurant: restaurantId,
+    restaurant: restaurant._id,
     category: categoryId,
     name,
     price,
