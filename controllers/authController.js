@@ -8,6 +8,7 @@ import {
   generateRefreshToken,
   verifyToken,
 } from '../helper/authHelper.js';
+import { hashPassword } from '../helper/passwordHelper.js';
 
 // --------------------------------------------------------------------------
 
@@ -73,7 +74,7 @@ export const login = expressAsyncHandler(async (req, res) => {
 });
 
 // @desc    Change password when 1st time login
-// @route   POST
+// @route   PUT
 // @access  Restaurant Owner
 export const changeFirstPassword = expressAsyncHandler(async (req, res) => {
   const { role } = req.query;
@@ -106,7 +107,7 @@ export const changeFirstPassword = expressAsyncHandler(async (req, res) => {
       .findOne({ email: email })
       .select('password isVerified');
 
-    restaurantOwner.password = newPassword;
+    restaurantOwner.password = await hashPassword(newPassword);
     restaurantOwner.isVerified = true;
     await restaurantOwner.save();
 
@@ -126,7 +127,9 @@ export const myProfile = expressAsyncHandler(async (req, res) => {
   // Super Admin
   switch (role) {
     case 'owner': {
-      const restaurantOwner = await restaurantOwnerModel.findOne({ _id: id });
+      const restaurantOwner = await restaurantOwnerModel
+        .findOne({ _id: id })
+        .select('-password');
       if (!restaurantOwner) {
         res.status(404);
         throw new Error('Restaurant Owner not found');
