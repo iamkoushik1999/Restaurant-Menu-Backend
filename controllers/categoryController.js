@@ -12,14 +12,15 @@ import { generateCategoryStanding } from '../utils/generateNumber.js';
 // @route   GET
 // @access  Public
 export const getAllCategories = expressAsyncHandler(async (req, res) => {
-  const { restaurantId } = req.params;
-  const restaurant = await restaurantModel.findById(restaurantId);
+  const { id } = req.user;
+
+  const restaurant = await restaurantModel.findOne({ owner: id });
   if (!restaurant) {
     res.status(404);
     throw new Error('No restaurant found');
   }
   const categories = await categoryModel
-    .find({ restaurant: restaurantId })
+    .find({ restaurant: restaurant._id })
     .sort({ standing: 1 });
 
   res.status(200).json({
@@ -31,20 +32,17 @@ export const getAllCategories = expressAsyncHandler(async (req, res) => {
 // @route   POST
 // @access  Admin
 export const createCategory = expressAsyncHandler(async (req, res) => {
-  const { restaurantId, name } = req.body;
-  if (!restaurantId) {
-    res.status(400);
-    throw new Error('Please select the restaurant');
-  }
+  const { id } = req.user;
+  const { name } = req.body;
 
-  const restaurant = await restaurantModel.findById(restaurantId);
+  const restaurant = await restaurantModel.findOne({ owner: id });
   if (!restaurant) {
     res.status(404);
     throw new Error('No restautant found');
   }
 
   const category = await categoryModel.create({
-    restaurant: restaurantId,
+    restaurant: restaurant._id,
     name,
     standing: await generateCategoryStanding(),
   });
@@ -60,8 +58,16 @@ export const createCategory = expressAsyncHandler(async (req, res) => {
 // @route   PUT
 // @access  Admin
 export const updateCategory = expressAsyncHandler(async (req, res) => {
+  const { id: ownerId } = req.user;
+  const restaurant = await restaurantModel.findOne({ owner: ownerId });
+  if (!restaurant) {
+    res.status(404);
+    throw new Error('No restautant found');
+  }
+
   const { id } = req.params;
-  const { standing, restaurantId } = req.body;
+
+  const { standing } = req.body;
   const category = await categoryModel.findById(id);
   if (!category) {
     res.status(404);
@@ -73,7 +79,7 @@ export const updateCategory = expressAsyncHandler(async (req, res) => {
   if (standing) {
     // Fetch all category in the same restaurant, sorted by standing
     let allCategory = await categoryModel
-      .find({ restaurant: restaurantId })
+      .find({ restaurant: restaurant._id })
       .sort({ standing: 1 });
 
     // Remove the current categories from the array
@@ -99,7 +105,7 @@ export const updateCategory = expressAsyncHandler(async (req, res) => {
     await categoryModel.findOneAndUpdate(
       {
         _id: id,
-        restaurant: restaurantId,
+        restaurant: restaurant._id,
       },
       req.body,
       {
@@ -118,8 +124,14 @@ export const updateCategory = expressAsyncHandler(async (req, res) => {
 // @route   DELETE
 // @access  Admin
 export const deleteCategory = expressAsyncHandler(async (req, res) => {
+  const { id: ownerId } = req.user;
+  const restaurant = await restaurantModel.findOne({ owner: ownerId });
+  if (!restaurant) {
+    res.status(404);
+    throw new Error('No restautant found');
+  }
+
   const { id } = req.params;
-  const { restaurantId } = req.body;
   const category = await categoryModel.findById(id);
   if (!category) {
     res.status(404);
@@ -130,7 +142,7 @@ export const deleteCategory = expressAsyncHandler(async (req, res) => {
 
   // Fetch remaining categories and reorder standings
   const allCategory = await categoryModel
-    .find({ restaurant: restaurantId })
+    .find({ restaurant: restaurant._id })
     .sort({ standing: 1 });
 
   const bulkUpdates = allCategory.map((category, index) => ({
