@@ -9,7 +9,13 @@ import {
   deleteRestaurant,
   restoreRestaurant,
   getDeletedRestaurants,
+  myRestaurant,
 } from '../controllers/restaurantController.js';
+// Middleware
+import {
+  authorizeOwner,
+  isAuthenticated,
+} from '../middlewares/authMiddleware.js';
 
 // ---------------------------------------------------
 
@@ -25,6 +31,12 @@ router.route('/delete/:id').delete(deleteRestaurant);
 router.route('/restore/:id').put(restoreRestaurant);
 // GET
 router.route('/deleted').get(getDeletedRestaurants);
+
+// GET
+router
+  .route('/myRestaurant')
+  .get(isAuthenticated, authorizeOwner, myRestaurant);
+
 // GET
 router.route('/:id').get(getRestaurant);
 

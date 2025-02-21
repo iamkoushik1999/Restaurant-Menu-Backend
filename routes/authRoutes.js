@@ -8,7 +8,10 @@ import {
   generateAccessFromRefresh,
 } from '../controllers/authController.js';
 // Middleware
-import { isAuthenticated } from '../middlewares/authMiddleware.js';
+import {
+  authorizeOwner,
+  isAuthenticated,
+} from '../middlewares/authMiddleware.js';
 
 // --------------------------------------------------------------------------
 
@@ -17,7 +20,7 @@ router.route('/login').post(login);
 // POST
 router.route('/password').put(changeFirstPassword);
 // GET
-router.route('/profile').get(isAuthenticated, myProfile);
+router.route('/profile').get(isAuthenticated, authorizeOwner, myProfile);
 // POST
 router.route('/accesstoken').post(generateAccessFromRefresh);
 

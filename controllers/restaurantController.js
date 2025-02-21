@@ -106,10 +106,20 @@ export const createRestaurant = expressAsyncHandler(async (req, res) => {
     throw new Error('Please fill in all required fields');
   }
 
+  // Check if owner exists
   const restaurantOwner = await restaurantOwnerModel.findById(owner);
   if (!restaurantOwner) {
     res.status(400);
     throw new Error('Owner not found');
+  }
+
+  // Check if owner already has a restaurant
+  const restaurantExists = await restaurantModel.findOne({ owner: owner });
+  if (restaurantExists) {
+    res.status(400);
+    throw new Error(
+      'Owner already has a restaurant, Try creating a new owner with another email'
+    );
   }
 
   const restaurant = await restaurantModel.create({
@@ -228,4 +238,21 @@ export const restoreRestaurant = expressAsyncHandler(async (req, res) => {
 export const getDeletedRestaurants = expressAsyncHandler(async (req, res) => {
   const restaurants = await restaurantModel.find({ isDeleted: true });
   res.status(200).json({ data: restaurants });
+});
+
+// --------------------------------------------------------------------------------------
+
+// @desc    My Restaurants
+// @route   GET
+// @access  Restaurant Owner
+export const myRestaurant = expressAsyncHandler(async (req, res) => {
+  const { id } = req.user;
+
+  const restaurant = await restaurantModel.findOne({ owner: id });
+  if (!restaurant) {
+    res.status(404);
+    throw new Error('Restaurants not found');
+  }
+
+  res.status(200).json({ data: restaurant });
 });
