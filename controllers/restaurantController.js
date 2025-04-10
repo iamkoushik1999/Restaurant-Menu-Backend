@@ -85,6 +85,8 @@ export const createRestaurant = expressAsyncHandler(async (req, res) => {
     phone,
     email,
     website,
+    lat,
+    long,
   } = req.body;
 
   if (!owner) {
@@ -100,6 +102,8 @@ export const createRestaurant = expressAsyncHandler(async (req, res) => {
     !zip ||
     !phone ||
     !email ||
+    !lat ||
+    !long ||
     !website
   ) {
     res.status(400);
@@ -133,6 +137,10 @@ export const createRestaurant = expressAsyncHandler(async (req, res) => {
     phone,
     email,
     website,
+    location: {
+      type: 'Point',
+      coordinates: [long, lat],
+    },
   });
   res.status(200).json({
     message: 'Restaurant created successfully',
@@ -175,18 +183,18 @@ export const updateRestaurant = expressAsyncHandler(async (req, res) => {
     throw new Error('Owner not found');
   }
 
-  restaurant.owner = owner;
-  restaurant.name = name;
-  restaurant.address = address;
-  restaurant.city = city;
-  restaurant.state = state;
-  restaurant.country = country;
-  restaurant.zip = zip;
-  restaurant.phone = phone;
-  restaurant.email = email;
-  restaurant.website = website;
+  restaurant.owner = owner || restaurant?.owner;
+  restaurant.name = name || restaurant?.name;
+  restaurant.address = address || restaurant?.address;
+  restaurant.city = city || restaurant?.city;
+  restaurant.state = state || restaurant?.state;
+  restaurant.country = country || restaurant?.country;
+  restaurant.zip = zip || restaurant?.zip;
+  restaurant.phone = phone || restaurant?.phone;
+  restaurant.email = email || restaurant?.email;
+  restaurant.website = website || restaurant?.website;
 
-  const updatedRestaurant = await restaurant.save();
+  await restaurant.save();
 
   res.status(200).json({
     message: 'Restaurant updated successfully',
@@ -241,6 +249,51 @@ export const getDeletedRestaurants = expressAsyncHandler(async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------------
+
+// @desc    Nearby Restaurants
+// @route   GET
+// @access  Public
+export const nearbyRestaurants = expressAsyncHandler(async (req, res) => {
+  const { lat, long } = req.query;
+  if (!lat || !long) {
+    res.status(400);
+    throw new Error('Please enter latitude and longitude');
+  }
+
+  const restaurants = await restaurantModel.find({
+    location: {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates: [parseFloat(long), parseFloat(lat)],
+        },
+        $maxDistance: 10000,
+      },
+    },
+  });
+
+  const rest = restaurants.map((restaurant) => {
+    return {
+      id: restaurant._id,
+      name: restaurant.name,
+      address: restaurant.address,
+      city: restaurant.city,
+      state: restaurant.state,
+      country: restaurant.country,
+      zip: restaurant.zip,
+      phone: restaurant.phone,
+      email: restaurant.email,
+      website: restaurant.website,
+    };
+  });
+
+  const total = restaurants.length;
+
+  res.status(200).json({
+    data: rest,
+    total,
+  });
+});
 
 // @desc    My Restaurants
 // @route   GET

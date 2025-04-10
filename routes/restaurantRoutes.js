@@ -10,6 +10,7 @@ import {
   restoreRestaurant,
   getDeletedRestaurants,
   myRestaurant,
+  nearbyRestaurants,
 } from '../controllers/restaurantController.js';
 // Middleware
 import {
@@ -31,6 +32,9 @@ router.route('/delete/:id').delete(deleteRestaurant);
 router.route('/restore/:id').put(restoreRestaurant);
 // GET
 router.route('/deleted').get(getDeletedRestaurants);
+
+// GET
+router.route('/nearby').get(nearbyRestaurants);
 
 // GET
 router
