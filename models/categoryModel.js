@@ -3,9 +3,10 @@ import mongoose from 'mongoose';
 const categorySchema = new mongoose.Schema(
   {
     restaurant: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: 'Restaurant',
+      index: true,
     },
     name: {
       type: String,
@@ -14,6 +15,7 @@ const categorySchema = new mongoose.Schema(
     },
     standing: {
       type: Number,
+      default: 1,
     },
   },
   {

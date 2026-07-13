@@ -4,57 +4,77 @@ import expressAsyncHandler from 'express-async-handler';
 import restaurantModel from '../models/restaurantModel.js';
 import categoryModel from '../models/categoryModel.js';
 import menuModel from '../models/menuModel.js';
+// Utils
+import { uploadBufferToCloudinary, deleteCloudinaryImage } from '../utils/uploadImage.js';
 
 // --------------------------------------------------------------------------------
 
-// @desc    Get all menus
-// @route   GET
-// @access  Public
-export const getAllMenus = expressAsyncHandler(async (req, res) => {
-  const { id } = req.user;
-
-  const restaurant = await restaurantModel.findOne({ owner: id });
+const getOwnedRestaurant = async (ownerId) => {
+  const restaurant = await restaurantModel.findOne({ owner: ownerId });
   if (!restaurant) {
-    res.status(404);
-    throw new Error('No restaurant found');
+    const error = new Error('No restaurant found for this account');
+    error.statusCode = 404;
+    throw error;
   }
-  const menus = await menuModel.find({ restaurant: restaurant._id });
+  return restaurant;
+};
 
-  const totalMenus = menus.length;
+// @desc    Get all menu items for the logged-in owner's restaurant
+// @route   GET /api/v1/menu/mine
+// @access  Private
+export const getAllMenus = expressAsyncHandler(async (req, res) => {
+  const restaurant = await getOwnedRestaurant(req.user._id);
+  const menus = await menuModel
+    .find({ restaurant: restaurant._id })
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
+    success: true,
     data: menus,
-    total: totalMenus,
+    total: menus.length,
   });
 });
 
-// @desc    Create a new menu
-// @route   POST
-// @access  Admin
+// @desc    Create a new menu item
+// @route   POST /api/v1/menu
+// @access  Private
 export const createMenu = expressAsyncHandler(async (req, res) => {
-  const { id } = req.user;
-  const { categoryId, name, price, isVegetarian, halfAvailable, halfPrice } =
+  const { categoryId, name, price, description, isVegetarian, halfAvailable, halfPrice } =
     req.body;
+
   if (!categoryId || !name || !price) {
     res.status(400);
-    throw new Error('Please select category, name and price');
+    throw new Error('Please provide a category, name and price');
   }
 
-  if (halfAvailable && !halfPrice) {
+  const vegetarian = isVegetarian === 'true' || isVegetarian === true;
+  const halfPortionAvailable = halfAvailable === 'true' || halfAvailable === true;
+
+  if (halfPortionAvailable && !halfPrice) {
     res.status(400);
-    throw new Error('Please provide half price');
+    throw new Error('Please provide a half portion price');
   }
 
-  const restaurant = await restaurantModel.findOne({ owner: id });
-  if (!restaurant) {
-    res.status(404);
-    throw new Error('No restaurant found');
-  }
+  const restaurant = await getOwnedRestaurant(req.user._id);
 
-  const category = await categoryModel.findById(categoryId);
+  const category = await categoryModel.findOne({
+    _id: categoryId,
+    restaurant: restaurant._id,
+  });
   if (!category) {
     res.status(404);
-    throw new Error('No category found');
+    throw new Error('Category not found');
+  }
+
+  let image;
+  let imagePublicId;
+  if (req.file) {
+    const result = await uploadBufferToCloudinary(
+      req.file.buffer,
+      'restaurant-menu/items'
+    );
+    image = result.secure_url;
+    imagePublicId = result.public_id;
   }
 
   const menu = await menuModel.create({
@@ -62,62 +82,105 @@ export const createMenu = expressAsyncHandler(async (req, res) => {
     category: categoryId,
     name,
     price,
-    isVegetarian,
-    type: isVegetarian ? 'Veg' : 'NonVeg',
-    halfAvailable,
-    halfPrice,
+    description,
+    image,
+    imagePublicId,
+    isVegetarian: vegetarian,
+    type: vegetarian ? 'Veg' : 'NonVeg',
+    halfAvailable: halfPortionAvailable,
+    halfPrice: halfPortionAvailable ? halfPrice : undefined,
   });
 
-  res.status(200).json({
-    message: 'Menu created successfully',
+  res.status(201).json({
+    message: 'Menu item created successfully',
     success: true,
     data: menu,
   });
 });
 
-// @desc    Update a menu
-// @route   PUT
-// @access  Admin
+// @desc    Update a menu item
+// @route   PUT /api/v1/menu/:id
+// @access  Private
 export const updateMenu = expressAsyncHandler(async (req, res) => {
+  const restaurant = await getOwnedRestaurant(req.user._id);
   const { id } = req.params;
-  const { name, price, isVegetarian, categoryId, halfAvailable, halfPrice } =
-    req.body;
-  const menu = await menuModel.findById(id);
+
+  const menu = await menuModel.findOne({ _id: id, restaurant: restaurant._id });
   if (!menu) {
     res.status(404);
-    throw new Error('No menu found');
+    throw new Error('Menu item not found');
   }
-  menu.category = categoryId;
-  menu.name = name;
-  menu.price = price;
-  menu.type = isVegetarian ? 'Veg' : 'NonVeg';
-  menu.isVegetarian = isVegetarian;
-  menu.halfAvailable = halfAvailable;
-  menu.halfPrice = halfPrice;
+
+  const { categoryId, name, price, description, isVegetarian, halfAvailable, halfPrice, isAvailable } =
+    req.body;
+
+  if (categoryId) {
+    const category = await categoryModel.findOne({
+      _id: categoryId,
+      restaurant: restaurant._id,
+    });
+    if (!category) {
+      res.status(404);
+      throw new Error('Category not found');
+    }
+    menu.category = categoryId;
+  }
+
+  if (name) menu.name = name;
+  if (price) menu.price = price;
+  if (description !== undefined) menu.description = description;
+
+  if (isVegetarian !== undefined) {
+    menu.isVegetarian = isVegetarian === 'true' || isVegetarian === true;
+    menu.type = menu.isVegetarian ? 'Veg' : 'NonVeg';
+  }
+
+  if (halfAvailable !== undefined) {
+    menu.halfAvailable = halfAvailable === 'true' || halfAvailable === true;
+    menu.halfPrice = menu.halfAvailable ? halfPrice : undefined;
+  }
+
+  if (isAvailable !== undefined) {
+    menu.isAvailable = isAvailable === 'true' || isAvailable === true;
+  }
+
+  if (req.file) {
+    const result = await uploadBufferToCloudinary(
+      req.file.buffer,
+      'restaurant-menu/items'
+    );
+    await deleteCloudinaryImage(menu.imagePublicId);
+    menu.image = result.secure_url;
+    menu.imagePublicId = result.public_id;
+  }
 
   await menu.save();
+
   res.status(200).json({
-    message: 'Menu updated successfully',
+    message: 'Menu item updated successfully',
     success: true,
     data: menu,
   });
 });
 
-// @desc    Delete a menu
-// @route   DELETE
-// @access  Admin
+// @desc    Delete a menu item
+// @route   DELETE /api/v1/menu/:id
+// @access  Private
 export const deleteMenu = expressAsyncHandler(async (req, res) => {
+  const restaurant = await getOwnedRestaurant(req.user._id);
   const { id } = req.params;
-  const menu = await menuModel.findById(id);
+
+  const menu = await menuModel.findOne({ _id: id, restaurant: restaurant._id });
   if (!menu) {
     res.status(404);
-    throw new Error('No menu found');
+    throw new Error('Menu item not found');
   }
 
+  await deleteCloudinaryImage(menu.imagePublicId);
   await menuModel.findByIdAndDelete(id);
 
   res.status(200).json({
-    message: 'Menu deleted successfully',
+    message: 'Menu item deleted successfully',
     success: true,
   });
 });

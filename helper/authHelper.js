@@ -1,7 +1,7 @@
 // Packages
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 // ENV
-const { JWT_SECRET } = process.env;
+const { JWT_SECRET, JWT_ACCESS_EXPIRES, JWT_REFRESH_EXPIRES } = process.env;
 
 // --------------------------------------------------------------------------
 
@@ -10,25 +10,25 @@ export const generateAccessToken = (user, role) => {
   return jwt.sign(
     {
       id: user._id,
-      role: role,
+      role,
     },
     JWT_SECRET,
     {
-      expiresIn: "15d",
+      expiresIn: JWT_ACCESS_EXPIRES || '15d',
     }
   );
 };
 
-// Generate Refesh Token
+// Generate Refresh Token
 export const generateRefreshToken = (user, role) => {
   return jwt.sign(
     {
       id: user._id,
-      role: role,
+      role,
     },
     JWT_SECRET,
     {
-      expiresIn: "365d",
+      expiresIn: JWT_REFRESH_EXPIRES || '365d',
     }
   );
 };

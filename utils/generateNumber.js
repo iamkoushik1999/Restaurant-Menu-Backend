@@ -3,14 +3,12 @@ import categoryModel from '../models/categoryModel.js';
 
 // ------------------------------------------------------------------------
 
-// Generate Category Standing
-export const generateCategoryStanding = async () => {
-  // Get the last category to find the last sequence number
-  const lastCategory = await categoryModel.findOne().sort({ createdAt: -1 });
+// Generate the next standing (display order) for a category within a restaurant
+export const generateCategoryStanding = async (restaurantId) => {
+  const lastCategory = await categoryModel
+    .findOne({ restaurant: restaurantId })
+    .sort({ standing: -1 });
 
-  // Extract the last number and increment it, or start from 0
-  const lastNumber = lastCategory ? parseInt(lastCategory?.standing) : 0;
-  const nextNumber = lastNumber + 1;
-
-  return nextNumber;
+  const lastNumber = lastCategory ? lastCategory.standing : 0;
+  return lastNumber + 1;
 };

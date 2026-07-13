@@ -1,47 +1,16 @@
 import { Router } from 'express';
 const router = Router();
 // Controllers
-import {
-  getRestaurants,
-  createRestaurant,
-  getRestaurant,
-  updateRestaurant,
-  deleteRestaurant,
-  restoreRestaurant,
-  getDeletedRestaurants,
-  myRestaurant,
-  nearbyRestaurants,
-} from '../controllers/restaurantController.js';
+import { myRestaurant, updateMyRestaurant } from '../controllers/restaurantController.js';
 // Middleware
-import {
-  authorizeOwner,
-  isAuthenticated,
-} from '../middlewares/authMiddleware.js';
+import { isAuthenticated } from '../middlewares/authMiddleware.js';
+import { upload } from '../middlewares/uploadMiddleware.js';
 
 // ---------------------------------------------------
 
-// GET
-router.route('/').get(getRestaurants);
-// POST
-router.route('/').post(createRestaurant);
-// PUT
-router.route('/update/:id').put(updateRestaurant);
-// DELETE
-router.route('/delete/:id').delete(deleteRestaurant);
-// PUT
-router.route('/restore/:id').put(restoreRestaurant);
-// GET
-router.route('/deleted').get(getDeletedRestaurants);
-
-// GET
-router.route('/nearby').get(nearbyRestaurants);
-
-// GET
+router.route('/mine').get(isAuthenticated, myRestaurant);
 router
-  .route('/myRestaurant')
-  .get(isAuthenticated, authorizeOwner, myRestaurant);
-
-// GET
-router.route('/:id').get(getRestaurant);
+  .route('/mine')
+  .put(isAuthenticated, upload.single('logo'), updateMyRestaurant);
 
 export default router;

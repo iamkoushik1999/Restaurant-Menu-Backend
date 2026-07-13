@@ -2,6 +2,7 @@
 import expressAsyncHandler from 'express-async-handler';
 // Models
 import restaurantOwnerModel from '../models/restaurantOwnerModel.js';
+import restaurantModel from '../models/restaurantModel.js';
 // Helper
 import {
   generateAccessToken,
@@ -9,148 +10,220 @@ import {
   verifyToken,
 } from '../helper/authHelper.js';
 import { hashPassword } from '../helper/passwordHelper.js';
+// Utils
+import { generateUniqueSlug } from '../utils/generateSlug.js';
 
 // --------------------------------------------------------------------------
 
-// @desc    Login
-// @route   POST
-// @access  Restaurant Owner
-export const login = expressAsyncHandler(async (req, res) => {
-  const { role } = req.query;
-  if (!role) {
-    res.status(400);
-    throw new Error('Select who will login');
-  }
-  if (role !== 'owner') {
-    res.status(400);
-    throw new Error('Select between owner');
-  }
-  if (role === 'owner') {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      res.status(400);
-      throw new Error('Required fields are missing(email, password)');
-    }
-    const restaurantOwnerData = await restaurantOwnerModel.findOne({ email });
-    if (!restaurantOwnerData) {
-      res.status(404);
-      throw new Error('Restaurant Owner not found');
-    }
-
-    const { password: pass, ...restaurantOwner } = restaurantOwnerData._doc;
-
-    const checkPassword = await restaurantOwnerData.comparePassword(password);
-    if (!checkPassword) {
-      res.status(400);
-      throw new Error('Invalid restaurant owner credential');
-    }
-
-    const accessToken = generateAccessToken(restaurantOwner, 'owner');
-    const refreshToken = generateRefreshToken(restaurantOwner, 'owner');
-
-    if (restaurantOwner) {
-      res.status(200).json({
-        message: restaurantOwner.isVerified
-          ? 'Logged in successfully'
-          : 'Change Password',
-        success: true,
-        data: restaurantOwner?.isVerified
-          ? {
-              fullName: restaurantOwner?.fullName,
-              role: restaurantOwner?.role,
-              isVerified: restaurantOwner?.isVerified,
-            }
-          : {
-              isVerified: restaurantOwner?.isVerified,
-            },
-        accessToken: restaurantOwner?.isVerified ? accessToken : undefined,
-        refreshToken: restaurantOwner?.isVerified ? refreshToken : undefined,
-      });
-    } else {
-      res.status(400);
-      throw new Error('invalid user');
-    }
-  }
+const sanitizeOwner = (owner) => ({
+  _id: owner._id,
+  fullName: owner.fullName,
+  email: owner.email,
+  phoneNumber: owner.phoneNumber,
+  role: owner.role,
 });
 
-// @desc    Change password when 1st time login
-// @route   PUT
-// @access  Restaurant Owner
-export const changeFirstPassword = expressAsyncHandler(async (req, res) => {
-  const { role } = req.query;
-  if (!role) {
+// @desc    Sign up a new restaurant owner + their restaurant
+// @route   POST /api/v1/auth/register
+// @access  Public
+export const register = expressAsyncHandler(async (req, res) => {
+  const {
+    fname,
+    lname,
+    email,
+    password,
+    confirmPassword,
+    phoneNumber,
+    restaurantName,
+    address,
+    city,
+    state,
+    country,
+    zip,
+    restaurantPhone,
+    restaurantEmail,
+    website,
+  } = req.body;
+
+  if (
+    !fname ||
+    !lname ||
+    !email ||
+    !password ||
+    !phoneNumber ||
+    !restaurantName ||
+    !address ||
+    !city ||
+    !state ||
+    !country ||
+    !zip ||
+    !restaurantPhone
+  ) {
     res.status(400);
-    throw new Error('Select who will login');
+    throw new Error('Please fill in all required fields');
   }
-  if (role !== 'owner') {
+
+  if (password.length < 6) {
     res.status(400);
-    throw new Error('Select between owner');
+    throw new Error('Password must be at least 6 characters long');
   }
-  if (role === 'owner') {
-    const { email, newPassword, confirmPassword } = req.body;
-    if (!email) {
-      res.status(400);
-      throw new Error('Please enter the email');
-    }
-    if (!newPassword || !confirmPassword) {
-      res.status(400);
-      throw new Error('Please enter all the field');
-    }
 
-    // Check confirm password
-    if (newPassword !== confirmPassword) {
-      res.status(400);
-      throw new Error('New password doesnot match old password');
-    }
+  if (confirmPassword && password !== confirmPassword) {
+    res.status(400);
+    throw new Error('Passwords do not match');
+  }
 
-    const restaurantOwner = await restaurantOwnerModel
-      .findOne({ email: email })
-      .select('password isVerified');
+  const normalizedEmail = email.toLowerCase().trim();
 
-    restaurantOwner.password = await hashPassword(newPassword);
-    restaurantOwner.isVerified = true;
-    await restaurantOwner.save();
+  const ownerExists = await restaurantOwnerModel.findOne({
+    email: normalizedEmail,
+  });
+  if (ownerExists) {
+    res.status(400);
+    throw new Error('An account with this email already exists');
+  }
 
-    res.status(200).json({
-      message: 'Password changed successfully',
-      success: true,
+  const owner = await restaurantOwnerModel.create({
+    fname,
+    lname,
+    fullName: `${fname} ${lname}`,
+    email: normalizedEmail,
+    password: await hashPassword(password),
+    phoneNumber,
+  });
+
+  let restaurant;
+  try {
+    const slug = await generateUniqueSlug(restaurantName);
+    restaurant = await restaurantModel.create({
+      owner: owner._id,
+      name: restaurantName,
+      slug,
+      address,
+      city,
+      state,
+      country,
+      zip,
+      phone: restaurantPhone,
+      email: restaurantEmail,
+      website,
     });
+  } catch (error) {
+    // Roll back the owner account if restaurant creation fails
+    await restaurantOwnerModel.findByIdAndDelete(owner._id);
+    throw error;
   }
+
+  const accessToken = generateAccessToken(owner, 'owner');
+  const refreshToken = generateRefreshToken(owner, 'owner');
+
+  res.status(201).json({
+    message: 'Account created successfully',
+    success: true,
+    data: {
+      owner: sanitizeOwner(owner),
+      restaurant,
+    },
+    accessToken,
+    refreshToken,
+  });
+});
+
+// @desc    Login
+// @route   POST /api/v1/auth/login
+// @access  Public
+export const login = expressAsyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400);
+    throw new Error('Email and password are required');
+  }
+
+  const owner = await restaurantOwnerModel
+    .findOne({ email: email.toLowerCase().trim() })
+    .select('+password');
+
+  if (!owner) {
+    res.status(404);
+    throw new Error('No account found with this email');
+  }
+
+  const checkPassword = await owner.comparePassword(password);
+  if (!checkPassword) {
+    res.status(400);
+    throw new Error('Invalid email or password');
+  }
+
+  if (!owner.status || owner.isDeleted) {
+    res.status(403);
+    throw new Error('This account has been deactivated');
+  }
+
+  const accessToken = generateAccessToken(owner, 'owner');
+  const refreshToken = generateRefreshToken(owner, 'owner');
+
+  res.status(200).json({
+    message: 'Logged in successfully',
+    success: true,
+    data: sanitizeOwner(owner),
+    accessToken,
+    refreshToken,
+  });
+});
+
+// @desc    Change password (logged-in owner)
+// @route   PUT /api/v1/auth/password
+// @access  Private
+export const changePassword = expressAsyncHandler(async (req, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    res.status(400);
+    throw new Error('Please fill in all fields');
+  }
+
+  if (newPassword !== confirmPassword) {
+    res.status(400);
+    throw new Error('New passwords do not match');
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400);
+    throw new Error('Password must be at least 6 characters long');
+  }
+
+  const owner = await restaurantOwnerModel
+    .findById(req.user._id)
+    .select('+password');
+
+  const isMatch = await owner.comparePassword(currentPassword);
+  if (!isMatch) {
+    res.status(400);
+    throw new Error('Current password is incorrect');
+  }
+
+  owner.password = await hashPassword(newPassword);
+  await owner.save();
+
+  res.status(200).json({
+    message: 'Password changed successfully',
+    success: true,
+  });
 });
 
 // @desc    My Profile
-// @route   GET
-// @access  Restaurant Owner
+// @route   GET /api/v1/auth/profile
+// @access  Private
 export const myProfile = expressAsyncHandler(async (req, res) => {
-  // console.log(req.user);
-  const { id, role } = req.user;
-  // Super Admin
-  switch (role) {
-    case 'owner': {
-      const restaurantOwner = await restaurantOwnerModel
-        .findOne({ _id: id })
-        .select('-password');
-      if (!restaurantOwner) {
-        res.status(404);
-        throw new Error('Restaurant Owner not found');
-      }
-      res.status(200).json({
-        success: true,
-        data: restaurantOwner,
-      });
-      break;
-    }
-
-    default: {
-      res.status(404);
-      throw new Error('User not found');
-    }
-  }
+  res.status(200).json({
+    success: true,
+    data: sanitizeOwner(req.user),
+  });
 });
 
-// @desc    GENERATE ACCESS TOKEN from REFRESH TOKEN
-// @route   POST
-// @access  Restaurant Owner
+// @desc    Generate a new access token from a refresh token
+// @route   POST /api/v1/auth/accesstoken
+// @access  Public
 export const generateAccessFromRefresh = expressAsyncHandler(
   async (req, res) => {
     const { refreshToken } = req.body;
@@ -159,46 +232,26 @@ export const generateAccessFromRefresh = expressAsyncHandler(
       throw new Error('Refresh token is required.');
     }
 
+    let decoded;
     try {
-      // Verify the refresh token
-      const decoded = verifyToken(refreshToken);
-
-      let accessToken;
-
-      // Generate access token based on role
-      switch (decoded.role) {
-        case 'owner': {
-          const restaurantOwner = await restaurantOwnerModel.findOne({
-            _id: decoded.id,
-          });
-          if (!restaurantOwner) {
-            res.status(403);
-            throw new Error('Invalid refresh token.');
-          }
-          accessToken = generateAccessToken(restaurantOwner, 'owner');
-          break;
-        }
-
-        default:
-          res.status(403);
-          throw new Error('Invalid role.');
-      }
-
-      // Send the new access token
-      res.status(200).json({
-        message: 'Access token generated',
-        success: true,
-        accessToken: accessToken,
-      });
+      decoded = verifyToken(refreshToken);
     } catch (error) {
-      // Handle expired refresh token
-      if (error.name === 'TokenExpiredError') {
-        res.status(403);
-        throw new Error('Please login again');
-      } else {
-        res.status(403);
-        throw new Error('Please login again');
-      }
+      res.status(403);
+      throw new Error('Please login again');
     }
+
+    const owner = await restaurantOwnerModel.findOne({ _id: decoded.id });
+    if (!owner) {
+      res.status(403);
+      throw new Error('Please login again');
+    }
+
+    const accessToken = generateAccessToken(owner, 'owner');
+
+    res.status(200).json({
+      message: 'Access token generated',
+      success: true,
+      accessToken,
+    });
   }
 );

@@ -3,14 +3,29 @@ import mongoose from 'mongoose';
 const restaurantSchema = new mongoose.Schema(
   {
     owner: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
-      ref: 'RestaurantOwner',
+      unique: true,
+      ref: 'Owner',
     },
     name: {
       type: String,
       required: true,
       trim: true,
+    },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+    logo: {
+      type: String,
+    },
+    logoPublicId: {
+      type: String,
     },
     address: {
       type: String,
@@ -29,7 +44,7 @@ const restaurantSchema = new mongoose.Schema(
       required: true,
     },
     zip: {
-      type: Number,
+      type: String,
       required: true,
     },
     phone: {
@@ -38,26 +53,15 @@ const restaurantSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-    },
-    rating: {
-      type: Number,
+      trim: true,
     },
     website: {
       type: String,
+      trim: true,
     },
-    location: {
-      type: {
-        type: String,
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number],
-        required: true,
-      },
-    },
-    isDeleted: {
+    isActive: {
       type: Boolean,
-      default: false,
+      default: true,
     },
   },
   {
@@ -66,7 +70,5 @@ const restaurantSchema = new mongoose.Schema(
   }
 );
 
-restaurantSchema.index({ location: '2dsphere' });
-
-const restaurantModel = mongoose.model('restaurants', restaurantSchema);
+const restaurantModel = mongoose.model('Restaurant', restaurantSchema);
 export default restaurantModel;

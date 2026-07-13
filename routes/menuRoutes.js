@@ -7,16 +7,15 @@ import {
   deleteMenu,
   getAllMenus,
 } from '../controllers/menuController.js';
+// Middleware
+import { isAuthenticated } from '../middlewares/authMiddleware.js';
+import { upload } from '../middlewares/uploadMiddleware.js';
 
 // ----------------------------------------------------------
 
-// GET
-router.route('/:restaurantId').get(getAllMenus);
-// POST
-router.route('/').post(createMenu);
-// PUT
-router.route('/update/:id').put(updateMenu);
-// DELETE
-router.route('/delete/:id').delete(deleteMenu);
+router.route('/mine').get(isAuthenticated, getAllMenus);
+router.route('/').post(isAuthenticated, upload.single('image'), createMenu);
+router.route('/:id').put(isAuthenticated, upload.single('image'), updateMenu);
+router.route('/:id').delete(isAuthenticated, deleteMenu);
 
 export default router;

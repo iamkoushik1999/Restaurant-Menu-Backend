@@ -1,37 +1,43 @@
 import mongoose from 'mongoose';
-import {
-  comparePassword,
-  generateResetToken,
-  hashPassword,
-} from '../helper/passwordHelper.js';
+import { comparePassword } from '../helper/passwordHelper.js';
 
 const restaurantOwnerSchema = mongoose.Schema(
   {
     fname: {
       type: String,
+      required: true,
+      trim: true,
     },
     lname: {
       type: String,
+      required: true,
+      trim: true,
     },
     fullName: {
       type: String,
+      required: true,
+      trim: true,
     },
     email: {
       type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
     password: {
       type: String,
+      required: true,
+      select: false,
     },
     phoneNumber: {
       type: String,
+      required: true,
+      trim: true,
     },
     role: {
       type: String,
       default: 'owner',
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
     },
     status: {
       type: Boolean,
@@ -48,21 +54,12 @@ const restaurantOwnerSchema = mongoose.Schema(
   }
 );
 
-// Match Password
 restaurantOwnerSchema.method(
   'comparePassword',
   async function (enteredPassword) {
     return await comparePassword(enteredPassword, this.password);
   }
 );
-
-// Reset Password Token
-restaurantOwnerSchema.methods.getResetToken = function () {
-  const { resetToken, hashedToken, expireTime } = generateResetToken();
-  this.resetPasswordToken = hashedToken;
-  this.resetPasswordExpire = expireTime;
-  return resetToken;
-};
 
 const restaurantOwnerModel = mongoose.model('Owner', restaurantOwnerSchema);
 export default restaurantOwnerModel;

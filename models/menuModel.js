@@ -3,9 +3,16 @@ import mongoose from 'mongoose';
 const menuSchema = new mongoose.Schema(
   {
     restaurant: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: 'Restaurant',
+      index: true,
+    },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'Category',
+      index: true,
     },
     name: {
       type: String,
@@ -18,10 +25,13 @@ const menuSchema = new mongoose.Schema(
     },
     description: {
       type: String,
+      trim: true,
     },
-    category: {
+    image: {
       type: String,
-      required: true,
+    },
+    imagePublicId: {
+      type: String,
     },
     isVegetarian: {
       type: Boolean,
@@ -39,6 +49,10 @@ const menuSchema = new mongoose.Schema(
     halfPrice: {
       type: Number,
     },
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
@@ -46,5 +60,5 @@ const menuSchema = new mongoose.Schema(
   }
 );
 
-const menuModel = mongoose.model('menus', menuSchema);
+const menuModel = mongoose.model('Menu', menuSchema);
 export default menuModel;

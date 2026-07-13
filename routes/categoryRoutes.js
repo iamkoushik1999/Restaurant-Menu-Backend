@@ -7,16 +7,14 @@ import {
   deleteCategory,
   updateCategory,
 } from '../controllers/categoryController.js';
+// Middleware
+import { isAuthenticated } from '../middlewares/authMiddleware.js';
 
 // ----------------------------------------------------------
 
-// GET
-router.route('/:restaurantId').get(getAllCategories);
-// POST
-router.route('/').post(createCategory);
-// PUT
-router.route('/update/:id').put(updateCategory);
-// DELETE
-router.route('/delete/:id').delete(deleteCategory);
+router.route('/mine').get(isAuthenticated, getAllCategories);
+router.route('/').post(isAuthenticated, createCategory);
+router.route('/:id').put(isAuthenticated, updateCategory);
+router.route('/:id').delete(isAuthenticated, deleteCategory);
 
 export default router;
